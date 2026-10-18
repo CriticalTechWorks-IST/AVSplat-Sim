@@ -1100,8 +1100,14 @@ Shifts are metres: **x** lateral (+right), **y** vertical (+down),
 
         # Drag and the speed clamp act on the STATE, before integration, so the
         # model below receives the speed it will actually travel at.
+        #
+        # Drag is a coast-down only: it applies when neither pedal is held.
+        # Applied under throttle, linear damping caps the speed at about
+        # max_accel / drag_per_sec (3.0 / 0.6 = ~5 m/s), far below max_speed,
+        # so holding W stopped accelerating at ~17 km/h.
         v = self.bicycle.speed_mps + accel * dt
-        v *= max(0.0, 1.0 - self.drag_per_sec * dt)
+        if "w" not in keys and "s" not in keys:
+            v *= max(0.0, 1.0 - self.drag_per_sec * dt)
         v = float(np.clip(v, -self.max_speed_w, self.max_speed_w))
         self.bicycle.speed_mps = v
 
@@ -1122,17 +1128,19 @@ Shifts are metres: **x** lateral (+right), **y** vertical (+down),
         # the start pose untouched. That is the reverse transform: the camera pose is
         # the given, the CoG is derived from it.
         #
-        # Convention: this frame has theta = 0 along +z, while
-        # bicycle_kinematics uses theta = 0 along +x (heading_to_forward returns
-        # [cos, 0, sin]). The +pi/2 offset converts between them.
+        # Convention: here the camera looks along (x, z) = (sin yaw, cos yaw), so
+        # yaw is measured from +z towards +x. bicycle_kinematics measures theta
+        # from its FIRST state axis towards its second (heading [cos, sin]). So
+        # the state is passed axis-swapped, [z, x, yaw, v], and theta IS yaw. A
+        # constant offset cannot do this: theta = yaw + pi/2 gives heading
+        # (-sin yaw, cos yaw), which mirrors x, so the camera turned one way
+        # while it translated the other.
         d = self.cam_ahead_of_cog_w
         theta_cam = self.bicycle.yaw_rad
         cog_x = self.bicycle.x_m - d * np.sin(theta_cam)
         cog_z = self.bicycle.z_m - d * np.cos(theta_cam)
 
-        state0 = np.array(
-            [cog_x, cog_z, theta_cam + 0.5 * np.pi, v], dtype=np.float64
-        )
+        state0 = np.array([cog_z, cog_x, theta_cam, v], dtype=np.float64)
         states = bicycle_rollout(
             state0,
             np.zeros(1, dtype=np.float64),      # accel already folded into v
@@ -1141,8 +1149,8 @@ Shifts are metres: **x** lateral (+right), **y** vertical (+down),
             max(self.wheelbase_w, 1e-6),
             self.lr_ratio,
         )
-        cog_x, cog_z, theta_x, _ = states[-1]
-        theta_cam = float(theta_x - 0.5 * np.pi)
+        cog_z, cog_x, theta_cam, _ = states[-1]
+        theta_cam = float(theta_cam)
 
         # The camera rides the body, so it points along theta (the heading), not
         # along theta + beta (the direction of travel). Under steering it therefore

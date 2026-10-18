@@ -138,7 +138,9 @@ max_steer_rad: 0.45
 max_accel_mps2: 3.0
 max_brake_mps2: 6.0
 # Linear-in-v damping, 1/s -- NOT a drag model, and dimensionless so not scaled.
-# 0.6 loses ~6% of speed per 0.1 s tick (~1.7 s time constant).
+# Coast-down only: applied when neither W nor S is held, so under throttle the
+# speed is limited by max_speed_mps alone. 0.6 loses ~6% of speed per 0.1 s
+# tick (~1.7 s time constant).
 drag_per_sec: 0.6
 max_speed_mps: 25.0
 # Longitudinal offset from the CoG to the RENDERED CAMERA, which is a front
