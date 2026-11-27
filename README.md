@@ -1,5 +1,7 @@
 # AVSplat-Sim
 
+**Project page:** [AVSplat-Sim | Photorealistic Closed-Loop Simulation](https://prometheosfire.github.io/avsplat-sim-project-page/)
+
 ## Setup
 
 ### System requirements
